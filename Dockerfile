@@ -1,5 +1,7 @@
 FROM python:3.6.10-alpine3.10
 
+EXPOSE 8080
+
 WORKDIR /opt
 
 COPY app.py /opt

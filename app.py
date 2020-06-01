@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import logging
+import argparse
 
 from discord.ext import commands
 from discord.utils import get
@@ -12,9 +13,18 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-token = ''
-channel_id = ''
-excludes = ['foo', 'bar']
+parser = argparse.ArgumentParser()
+parser.add_argument("-t", "--token", help="token to bot auth")
+parser.add_argument("-c", "--channel", help="ID for RO channel on server")
+parser.add_argument("-e", "--exclude", help="roles to exclude for serve")
+
+args = parser.parse_args()
+
+token = args.token if args.token else input('Token: ')
+channel_id = args.channel if args.channel else input('RO channel ID: ')
+exclude = args.exclude if args.exclude else input('Exclude: ')
+
+excludes = [x for x in exclude.split(',')]
 
 client = discord.Client()
 

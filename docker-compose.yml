@@ -1,3 +1,5 @@
 app:
+  env_file:
+  - ./app.env
   image: kheodan/sovsemenot
-  restart: always
+  restart: unless-stopped

@@ -3,8 +3,7 @@ import logging
 import argparse
 import discord
 
-from discord import abc
-from discord.utils import get
+from discord import abc, utils
 from discord.ext import tasks
 
 logger = logging.getLogger('discord')
@@ -31,26 +30,25 @@ client = discord.Client()
 
 cache = {}
 
-
 @tasks.loop(seconds=1800)
 async def maintain_presence():
-    logger.info("confirm we are still here")
+    logger.debug("confirm we are still here")
     await client.change_presence(status=discord.Status.online, activity=None)
 
 
 @client.event
 async def on_ready():
     logger.info("Logged in as {}".format(client.user.name))
-    logger.info("gathering info about allowed channel")
+    logger.debug("gathering info about allowed channel")
     allowed_channel = client.get_channel(int(channel_id))
-    logger.info("{} channel found".format(allowed_channel.name))
-    logger.info("gathering pinned messages in allowed channel")
+    logger.debug("{} channel found".format(allowed_channel.name))
+    logger.debug("gathering pinned messages in allowed channel")
     pinned_messages = await abc.Messageable.pins(allowed_channel)
-    logger.info("{} pinned messages found".format(len(pinned_messages)))
-    logger.info("gathering info about allowed message")
+    logger.debug("{} pinned messages found".format(len(pinned_messages)))
+    logger.debug("gathering info about allowed message")
     first_pinned_message_id = int(pinned_messages[0].id)
     allowed_message = await abc.Messageable.fetch_message(allowed_channel, first_pinned_message_id)
-    logger.info("allowed channel and message found")
+    logger.debug("allowed channel and message found")
     cache["channel"] = allowed_channel
     cache["message"] = allowed_message
     logger.info("bot is ready")
@@ -59,9 +57,9 @@ async def on_ready():
 @client.event
 async def on_raw_reaction_add(payload):
     if validate_payload(payload):
-        role_name = payload.emoji.name
         guild = client.get_guild(payload.guild_id)
-        user = guild.get_member(payload.user_id)
+        user = await guild.fetch_member(payload.user_id)
+        role_name = payload.emoji.name
 
         guild_roles = [i.name for i in guild.roles]
         user_roles = [i.name for i in user.roles]
@@ -70,8 +68,9 @@ async def on_raw_reaction_add(payload):
             if role in guild_roles:
                 guild_roles.remove(role)
 
+        role = utils.get(guild.roles, name=role_name)
+
         if (role_name in guild_roles) and (role_name not in user_roles):
-            role = get(guild.roles, name=role_name)
             await user.add_roles(role)
             logger.info("{} have subscribed on {}".format(user.name, role))
 
@@ -79,14 +78,19 @@ async def on_raw_reaction_add(payload):
 @client.event
 async def on_raw_reaction_remove(payload):
     if validate_payload(payload):
-        role_name = payload.emoji.name
         guild = client.get_guild(payload.guild_id)
-        user = guild.get_member(payload.user_id)
+        user = await guild.fetch_member(payload.user_id)
+        role_name = payload.emoji.name
 
         guild_roles = [i.name for i in guild.roles]
 
+        for role in excludes:
+            if role in guild_roles:
+                guild_roles.remove(role)
+
+        role = utils.get(guild.roles, name=role_name)
+
         if (role_name in guild_roles) and (role_name not in excludes):
-            role = get(guild.roles, name=role_name)
             await user.remove_roles(role)
             logger.info("{} have unsubscribed from {}".format(user.name, role))
 
@@ -94,10 +98,10 @@ async def on_raw_reaction_remove(payload):
 def validate_payload(payload):
     if cache['channel'].id == payload.channel_id:
         if cache['message'].id == payload.message_id:
-            logger.info("payload validation success")
+            logger.debug("payload validation success")
             return True
     else:
-        logger.info("payload validation failed")
+        logger.debug("payload validation failed")
         return False
 
 
